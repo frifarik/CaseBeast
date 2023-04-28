@@ -239,12 +239,13 @@ async def LaunchSelect(User):
     autoit.win_move(win_csgo_title, posX, posY)
     win_csgo_PID = autoit.win_get_process(win_csgo_title)
     status = 'On'
-    await remove_msg.edit_text(f'<b>{User} | Запуск аккаунта:\n\n'
-                               f'✅ Получение всех данных\n'
-                               f'✅ Запуск Steam\n'
-                               f'✅ Ввод Steam Guard\n'
-                               f'✅ Запуск CS:GO\n\n'
-                               f'{User} | Аккаунт успешно запущен!</b>', parse_mode='HTML')
+    await remove_msg.delete()
+    await SendMSG(f'<b>{User} | Запуск аккаунта:\n\n'
+                  f'✅ Получение всех данных\n'
+                  f'✅ Запуск Steam\n'
+                  f'✅ Ввод Steam Guard\n'
+                  f'✅ Запуск CS:GO\n\n'
+                  f'{User} | Аккаунт успешно запущен!</b>')
     await UpdateAccountsJSON(status, login, password, shared_secret, win_csgo_title, win_csgo_PID, win_steam_PID)
     posX += 236
     if posX == 2124:
@@ -342,25 +343,6 @@ async def SendMSG(text, rmp=0):
                                text=f'<b>{text}</b>',
                                parse_mode='HTML',
                                reply_markup=rmp)
-
-
-async def OnStart():  # Первоначальный запуск
-    if readJson('Settings/settings.json')['auto_start_server'] == 'ON':  # Выполнить если включен автозапуск сервера
-        Server = getStatusServer()
-        if Server == 'OFF': subprocess.Popen(idle_path, cwd=idle_path[0:-10])
-    info = readJson('json/launched_accounts.json')
-    if info != {}:
-        Users = []
-        for User in info:
-            try:
-                os.kill(info[User]["win_steam_PID"], signal.SIGTERM)
-                os.kill(info[User]["win_csgo_PID"], signal.SIGTERM)
-                Users.append(User)
-            except:
-                Users.append(User)
-        for User in Users:
-            info.pop(User)
-        writeJson('json/launched_accounts.json', info)
 
 
 # endregion
@@ -541,12 +523,10 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
         await page_account.delete()
         await Beast_Account(0)
     elif acc == 'Update_Account':
-        await callback.message.delete()
+        await callback.message.edit_text(text='<b>Создание аккаунтов, это займет некоторое время!</b>', parse_mode='HTML')
         accounts = {}
         dir_name = os.path.abspath("./maFiles")
         file_logpass = open('json/logpass.txt')
-        remove_msg = await bot.send_message(chat_id=CHAT_ID, text='<b>Создаю аккаунты, подождите немного</b>',
-                                            parse_mode='HTML')
         for account, mafile in product(file_logpass, os.listdir(dir_name)):
             if account != '\n':
                 account_pair = account.split(':')
@@ -569,7 +549,7 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
                                                          'Steam2 ID': str(Steam2ID),
                                                          'shared_secret': str(Secret)}
         writeJson('json/accounts.json', accounts)
-        await remove_msg.delete()
+        await callback.message.delete()
         await SendMSG('Список аккаунтов обновлен')
     elif acc == 'Closed_Menu':
         await callback.message.delete()
@@ -611,38 +591,33 @@ async def Beast_CallBack_Account(callback: types.CallbackQuery):
     call = callback.data.replace('Account_', '').strip()
     if call == 'Start':
         if Status.count(acc):
-            await callback.message.delete()
-            await SendMSG(f'{acc} | Включен!')
+            await callback.message.edit_text(f'<b>{acc} | Включен!</b>', parse_mode='HTML')
         else:
             await callback.message.delete()
             await LaunchSelect(acc)
     elif call == 'Stop':
         if Status.count(acc):
             await StoppingSelect(acc)
-            await SendMSG(f'{acc} | Теперь выключен')
+            await callback.message.edit_text(f'<b>{acc} | Выключение аккаунта!</b>', parse_mode='HTML')
         else:
-            await SendMSG(f'{acc} | Уже выключен')
-        await callback.message.delete()
+            await callback.message.edit_text(f'<b>{acc} | Уже выключен!</b>', parse_mode='HTML')
     elif call == 'Reload':
         if Status.count(acc):
-            await SendMSG(f'{acc} | Перезагрузка аккаунта')
+            await callback.message.edit_text(f'<b>{acc} | Перезагрузка аккаунта!</b>', parse_mode='HTML')
             await StoppingSelect(acc)
             await LaunchSelect(acc)
         else:
-            await SendMSG(f'{acc} | Аккаунт не запущен')
-        await callback.message.delete()
+            await callback.message.edit_text(f'<b>{acc} | Аккаунт не запущен!</b>', parse_mode='HTML')
     elif call == 'Guard':
         Steam_Guard = generate_one_time_code(readJson("json/accounts.json")[acc]["shared_secret"])
-        await SendMSG(f'{acc} | Steam Guard - <code>{Steam_Guard}</code>')
-        await callback.message.delete()
+        await callback.message.edit_text(f'<b>{acc} | Steam Guard - <code>{Steam_Guard}</code></b>', parse_mode='HTML')
     elif call == 'Profile':
         info = readJson('json/accounts.json')
-        URLMarkup = types.InlineKeyboardMarkup()
+        URLMark = types.InlineKeyboardMarkup()
         URLButton = InlineKeyboardButton(text='Открыть',
                                          url=f'https://steamcommunity.com/profiles/{info[acc]["SteamID"]}/')
-        URLMarkup.add(URLButton)
-        await SendMSG(f'{acc} | Ссылка на аккаунт', URLMarkup)
-        await callback.message.delete()
+        URLMark.add(URLButton)
+        await callback.message.edit_text(f'<b>{acc} | Ссылка на аккаунт!</b>', parse_mode='HTML', reply_markup=URLMark)
     elif call == 'GoMenu':
         await callback.message.delete()
         await Beast_Account(0)
@@ -766,11 +741,9 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
                           'Указать его можно перейдя по пути:\n'
                           'Настройки > Пути > IDLE')
     elif Farm_Call == 'Stop':
-        await callback.message.delete()
-        await SendMSG('Производится остановка аккаунтов!')
+        await callback.message.edit_text(f'<b>Производится остановка аккаунтов!</b>', parse_mode='HTML')
         await StoppingAll()
     elif Farm_Call == 'Info':
-        await callback.message.delete()
         ParsingSummoner()
         info = readJson('json/DataCase.json')
         if info != {}:
@@ -796,7 +769,7 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
                     out += f'\n┌{login} ⏳\n├Осталось {res_sec}\n└Последний дроп: {a_time.day}.{a_time.month}.{a_time.year} {a_time.hour}:{a_time.minute}\n'
                 else:
                     out += f'\n┌{login} 🚫\n└Не удалось получить информацию о аккаунте!'
-            await SendMSG(out)
+            await callback.message.edit_text(f'<b>{out}</b>', parse_mode='HTML')
     elif Farm_Call == 'WinHide':
         launched = readJson('json/launched_accounts.json')
         for login in launched:
@@ -827,33 +800,13 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
     global Settings_Call
     Settings_Call = callback.data.replace('Settings_', '').strip()
     if Settings_Call == 'Steam':
-        await callback.message.delete()
-        await SendMSG('Введите новый путь до Steam:')
+        await callback.message.edit_text(f'<b>Введите новый путь до Steam\nПример: C:\Program Files (x86)\Steam</b>', parse_mode='HTML')
         await Settings_json.Steam_Path.set()
     elif Settings_Call == 'IDLE':
-        await callback.message.delete()
-        await SendMSG('Введите новый путь до IDLE:')
+        await callback.message.edit_text(f'<b>Введите новый путь до IDLE\nПример: C:\Server\Steam\steamapps\common\Counter-Strike Global Offensive Beta - Dedicated Server</b>', parse_mode='HTML')
         await Settings_json.Server_Idle.set()
-    elif Settings_Call == 'ConfigU':
-        await callback.message.delete()
-        out = 'Аккаунты которые настроены для приятной игры:\n'
-        info = readJson('json/accounts.json')
-        accountID_dirs = os.listdir(readJson("settings/settings.json")["steam_path"][:-10] + "\\userdata")
-        for account in info:
-            uid = info[account]["Steam2 ID"]
-            if uid in accountID_dirs:
-                folder = readJson("settings/settings.json")["steam_path"][:-10] + f"\\userdata\\{uid}\\730\\local\\cfg"
-                video = open(f'{folder}\\video.txt', "w")
-                video_user = open(f'Settings/video_user.txt', "r")
-                video.write(video_user.read())
-                videodefaults = open(f'{folder}\\videodefaults.txt', "w")
-                videodefaults_user = open(f'Settings/videodefaults_user.txt', "r")
-                videodefaults.write(videodefaults_user.read())
-                out += f'\n👤 {account}'
-        await SendMSG(out)
     elif Settings_Call == 'ConfigP':
-        await callback.message.delete()
-        out = 'Аккаунты которые настроены для фарма:\n'
+        out = 'Аккаунты где созданы настройки под фарм:\n'
         info = readJson('json/accounts.json')
         accountID_dirs = os.listdir(readJson("settings/settings.json")["steam_path"][:-10] + "\\userdata")
         for account in info:
@@ -867,10 +820,9 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
                 videodefaults_panel = open(f'Settings/videodefaults_panel.txt', "r")
                 videodefaults.write(videodefaults_panel.read())
                 out += f'\n👤 {account}'
-        await SendMSG(out)
+        await callback.message.edit_text(f'<b>{out}</b>', parse_mode='HTML')
     elif Settings_Call == 'AutoBot':
-        await callback.message.delete()
-        await SendMSG('Ошибка 🚫\nФункция в разработке.')
+        await callback.message.edit_text(f'<b>Ошибка 🚫\nФункция в разработке.</b>', parse_mode='HTML')
     elif Settings_Call == 'AutoIDLE':
         await callback.message.delete()
         info = readJson('Settings/settings.json')
@@ -886,8 +838,7 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
             writeJson('Settings/settings.json', settings)
             await SendMSG('Автозапуск сервера выключен')
     elif Settings_Call == 'Optimize':
-        await callback.message.delete()
-        await SendMSG('Запуск оптимизации!')
+        await callback.message.edit_text(f'<b>Запуск оптимизации!</b>', parse_mode='HTML')
         out = 'Результаты оптимизации:\n'
         CreateCFG()
         accountID_dirs = os.listdir(readJson("settings/settings.json")["steam_path"][:-10] + "\\userdata")
@@ -911,7 +862,7 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
                     out += f'\n{account} | Уже настроен'
             else:
                 out += f'\n{account} | Отсутствует maFile'
-        await SendMSG(out)
+        await callback.message.edit_text(f'<b>{out}</b>', parse_mode='HTML')
     elif Settings_Call == 'Close':
         await callback.message.delete()
 
@@ -1029,7 +980,7 @@ async def Beast_CallBack_Stats(callback: types.CallbackQuery):
                     writeJson('json/AccountCase.json', Result)
                     time.sleep(5)
             await callback.message.delete()
-            await SendMSG('Статистика обновлена, проверьте снова!')
+            await Beast_Stats(0)
     elif Stats_Call == 'Close':
         await callback.message.delete()
 
@@ -1044,17 +995,17 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
     global Other_Call
     Other_Call = callback.data.replace('Other_', '').strip()
     if Other_Call == 'Timer':
-        await callback.message.delete()
-        await SendMSG(
-            'Через сколько хотите завершить сеанс?\nОтвет в секундах, напоминание:\n1ч - 3600\n3ч - 10800\n5ч - 18000')
+        await callback.message.edit_text(f'<b>Через сколько хотите завершить сеанс?\n'
+                                         f'Ответ в секундах, пример:\n'
+                                         f'1ч - 3600\n'
+                                         f'3ч - 10800\n'
+                                         f'5ч - 18000</b>', parse_mode='HTML')
         await Timer_Setup.TimerINT.set()
     elif Other_Call == 'TimerOFF':
-        await callback.message.delete()
         os.system('shutdown -a')
-        await SendMSG('Таймер выключен')
+        await callback.message.edit_text(f'<b>Таймер выключен</b>', parse_mode='HTML')
     elif Other_Call == 'Spec':
-        await callback.message.delete()
-        remove_msg = await bot.send_message(chat_id=CHAT_ID, text=f'<b>Сбор информации.. ⏳</b>', parse_mode='HTML')
+        await callback.message.edit_text(f'<b>Сбор информации.. ⏳</b>', parse_mode='HTML')
         computer = wmi.WMI()
         os_info = computer.Win32_OperatingSystem()[0]
         proc_info = computer.Win32_Processor()[0]
@@ -1062,15 +1013,14 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
         os_name = os_info.Caption
         os_version = ' '.join([os_info.Version, os_info.BuildNumber])
         system_ram = math.ceil(float(os_info.TotalVisibleMemorySize) / 1048576)
-        await remove_msg.delete()
-        await SendMSG(f'Характеристики ПК 🖥\n\n'
-                      f'Операционная система: {os_name}\n'
-                      f'Версия системы: {os_version}\n'
-                      f'Процессор: {proc_info.Name}\n'
-                      f'Ядер: {proc_info.NumberOfCores}\n'
-                      f'Потоков: {proc_info.NumberOfLogicalProcessors}\n'
-                      f'Оперативной памяти: {system_ram}\n'
-                      f'Видеокарта: {gpu_info.Name}')
+        await callback.message.edit_text(f'<b>Характеристики ПК 🖥\n\n'
+                                         f'Операционная система: {os_name}\n'
+                                         f'Версия системы: {os_version}\n'
+                                         f'Процессор: {proc_info.Name}'
+                                         f'Ядер: {proc_info.NumberOfCores}\n'
+                                         f'Потоков: {proc_info.NumberOfLogicalProcessors}\n</b>'
+                                         f'Оперативной памяти: {system_ram}\n'
+                                         f'Видеокарта: {gpu_info.Name}', parse_mode='HTML')
     elif Other_Call == 'Close':
         await callback.message.delete()
 
@@ -1100,7 +1050,6 @@ async def Beast_Start(message: types.message):
 
 
 async def BotOn(_):
-    # await OnStart()
     await SendMSG('Бот готов к работе! 🤖', StartMenu)
 
 
@@ -1108,7 +1057,3 @@ async def BotOff(_):
     await SendMSG('Бот завершает работу')
 
 # endregion
-
-
-# if __name__ == '__main__':
-#     executor.start_polling(dp, skip_updates=True, on_startup=BotOn, on_shutdown=BotOff)
