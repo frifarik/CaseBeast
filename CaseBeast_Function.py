@@ -7,6 +7,7 @@ import requests
 import signal
 import subprocess
 import time
+import a2s
 import wmi
 import math
 import win32gui
@@ -449,7 +450,24 @@ async def Beast_Settings(message: types.message):
 @dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Сервер 💻')
 async def Beast_Server(message: types.message):
     await message.delete()
-    await SendMSG('Сервер 💻\nВыберите действие:', ServerKeyboard)
+    enum = []
+    for x in process_iter(): enum.append(x.name())
+    if enum.count('srcds.exe') > 0 and ip_address != '':
+        adrs = ip_address.split(':')
+        adrs = str(adrs[0]), int(adrs[1])
+        if len(a2s.players(adrs)) > 0:
+            out = 'Сервер 💻\n\nВ данный момент на сервер:\n'
+            for i in range(len(a2s.players(adrs))):
+                nick = str(a2s.players(adrs)[i]).split('name=')[-1].split(',')[0].replace("'", "")
+                timer = str(a2s.players(adrs)[i]).split('duration=')[-1].split(',')[0].replace("'", "").replace(')','').split('.')
+                timer = int(timer[0])
+                out += f'\n👤{nick} | Провел на сервере: {time.strftime("%H:%M:%S", time.gmtime(timer))}'
+            await SendMSG(f'{out}\n\n Выберите действие:', ServerKeyboard)
+        else:
+            out = 'Сервер 💻\n\nВ данный момент на сервер:\n\nПусто :('
+            await SendMSG(f'{out}\n\n Выберите действие:', ServerKeyboard)
+    else:
+        await SendMSG('Сервер 💻\nВ данный момент выключен!\nВыберите действие:', ServerKeyboard)
 
 
 @dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Статистика 📔')
