@@ -38,4 +38,5 @@ if __name__ == "__main__":
     Modules()
     Folders()
     Files()
+    print("Загрузка окончена!!!\n" * 3)
     input()
