@@ -1,8 +1,8 @@
 import os
 
-# os.system('python.exe -m pip install --upgrade pip')
-# os.system('pip install requests')
-# os.system('pip install urllib3')
+os.system('python.exe -m pip install --upgrade pip')
+os.system('pip install requests')
+os.system('pip install urllib3')
 
 
 url = 'https://raw.githubusercontent.com/frifarik/CaseBeast/main/'
