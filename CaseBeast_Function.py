@@ -13,17 +13,14 @@ import math
 import win32gui
 import win32con
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
-from threading import Thread
+from itertools import product
 import ctypes
 import mss.tools
 
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher import filters
+from aiogram.dispatcher import FSMContext, filters
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.types import InlineKeyboardButton, Message
 from bs4 import BeautifulSoup
 from psutil import process_iter
 from steampy.guard import generate_one_time_code
@@ -38,8 +35,10 @@ posY = 0
 acc = ''
 ip_address = ''
 
+AccountList = []
 
 # region Обычные функции
+
 
 def readJson(path):  # Чтение JSON файлов
     file = open(os.path.abspath(path), encoding='utf-8')
@@ -237,6 +236,7 @@ async def LaunchSelect(User):
             autoit.win_wait_active('Counter-Strike: Global Offensive - Direct3D 9')
             autoit.win_set_title('Counter-Strike: Global Offensive - Direct3D 9', win_csgo_title)
     autoit.win_activate(win_csgo_title)
+    time.sleep(1)
     autoit.win_move(win_csgo_title, posX, posY)
     win_csgo_PID = autoit.win_get_process(win_csgo_title)
     status = 'On'
@@ -379,33 +379,72 @@ class Account_Menu(StatesGroup):
 
 # region Меню
 
-
-@dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Аккаунты 👥')
-async def Beast_Account(message: types.message):
-    AccountMenu = types.InlineKeyboardMarkup()
-    account = list(readJson('json/accounts.json'))
-    status_account = list(readJson('json/launched_accounts.json'))
-    for login in range((page * 10), (page + 1) * 9 + (page + 1)):
+def Acc_ToList():
+    AccountToList = types.InlineKeyboardMarkup()
+    account = list(readJson('json/accounts.json'))  # Все аккаунты в список
+    status_account = list(readJson('json/launched_accounts.json'))  # Все активные аккаунты в список
+    for login in range((page * 10), (page + 1) * 9 + (page + 1)):  # Добавление аккаунтов в 2 столба
         try:
-            if login % 2 == 0:
+            if len(account) > 1:
+                if account[login] not in status_account:
+                    if AccountList.count(account[login]):
+                        AccountToList.add(KeyBoardInline(text=f'{account[login]} ✔', callback_data=f'List_Acc {account[login]}'))
+                    else:
+                        AccountToList.add(KeyBoardInline(text=f'{account[login]}', callback_data=f'List_Acc {account[login]}'))
+            else:
+                if account[login] not in status_account:
+                    if AccountList.count(account[login]):
+                        AccountToList.add(KeyBoardInline(text=f'{account[login]} ✔', callback_data=f'List_Acc {account[login]}'))
+                    else:
+                        AccountToList.add(KeyBoardInline(text=f'{account[login]}', callback_data=f'List_Acc {account[login]}'))
+        except IndexError:
+            pass
+    if len(account) <= 10:
+        pass
+    elif page == 0:
+        AccountToList.add(KeyBoardInline(text='Вперед ➡️', callback_data='List_Acc NextPage'))
+    elif page == len(account) // 10:
+        AccountToList.add(KeyBoardInline(text='⬅️ Назад', callback_data='List_Acc PrevPage'))
+    else:
+        AccountToList.row(KeyBoardInline(text='⬅️ Назад', callback_data='List_Acc PrevPage'),
+                          KeyBoardInline(text='Вперед ➡️', callback_data='List_Acc NextPage'))
+    AccountToList.row(KeyBoardInline(text='Запустить ▶️', callback_data='List_Acc Start'))
+    AccountToList.add(KeyBoardInline(text='❌', callback_data=f'List_Acc Closed_Menu'))
+    return AccountToList
+
+
+def AccList():
+    AccountMenu = types.InlineKeyboardMarkup()
+    account = list(readJson('json/accounts.json'))  # Все аккаунты в список
+    status_account = list(readJson('json/launched_accounts.json'))  # Все активные аккаунты в список
+    for login in range((page * 10), (page + 1) * 9 + (page + 1)):  # Добавление аккаунтов в 2 столба
+        try:
+            if len(account) > 1:
+                if login % 2 == 0:
+                    if account[login] in status_account:
+                        status_1 = f'{account[login]} | 🟢\n'
+                    else:
+                        status_1 = f'{account[login]} | 🔴\n'
+                    if account[login + 1] in status_account:
+                        status_2 = f'{account[login + 1]} | 🟢\n'
+                    else:
+                        status_2 = f'{account[login + 1]} | 🔴\n'
+                    AccountMenu.row(
+                        KeyBoardInline(text=status_1, callback_data=f'Select_Acc {account[login]}'),
+                        KeyBoardInline(text=status_2, callback_data=f'Select_Acc {account[login + 1]}'))
+                elif login % 2 != 0 and len(account) <= int(f'{login + page}'):
+                    login += 1
+                    if account[login] in status_account:
+                        status = f'{account[login]} | 🟢\n'
+                    else:
+                        status = f'{account[login]} | 🔴\n'
+                    AccountMenu.add(KeyBoardInline(text=status, callback_data=f'Select_Acc {account[login]}'))
+            else:
                 if account[login] in status_account:
-                    status_1 = f'{account[login]} | 🟢\n'
+                    status3 = f'{account[login]} | 🟢\n'
                 else:
-                    status_1 = f'{account[login]} | 🔴\n'
-                if account[login + 1] in status_account:
-                    status_2 = f'{account[login + 1]} | 🟢\n'
-                else:
-                    status_2 = f'{account[login + 1]} | 🔴\n'
-                AccountMenu.row(
-                    KeyBoardInline(text=status_1, callback_data=f'Select_Acc {account[login]}'),
-                    KeyBoardInline(text=status_2, callback_data=f'Select_Acc {account[login + 1]}'))
-            elif login % 2 != 0 and len(account) <= int(f'{login + page}'):
-                login += 1
-                if account[login] in status_account:
-                    status = f'{account[login]} | 🟢\n'
-                else:
-                    status = f'{account[login]} | 🔴\n'
-                AccountMenu.add(KeyBoardInline(text=status, callback_data=f'Select_Acc {account[login]}'))
+                    status3 = f'{account[login]} | 🔴\n'
+                AccountMenu.add(KeyBoardInline(text=status3, callback_data=f'Select_Acc {account[login]}'))
         except IndexError:
             pass
     if len(account) <= 10:
@@ -417,22 +456,20 @@ async def Beast_Account(message: types.message):
     else:
         AccountMenu.row(KeyBoardInline(text='⬅️ Назад', callback_data='Select_Acc PrevPage'),
                         KeyBoardInline(text='Вперед ➡️', callback_data='Select_Acc NextPage'))
-
     AccountMenu.row(KeyBoardInline(text='Загрузить maFile', callback_data=f'Select_Acc maFile'),
                     KeyBoardInline(text='Добавить логин и пароль', callback_data=f'Select_Acc LogPass'))
+    AccountMenu.add(KeyBoardInline(text='Выбрать аккаунты', callback_data='Select_Acc AddToList'))
     AccountMenu.add(KeyBoardInline(text='Обновить аккаунты', callback_data=f'Select_Acc Update_Account'))
     AccountMenu.add(KeyBoardInline(text='❌', callback_data=f'Select_Acc Closed_Menu'))
+    return AccountMenu
 
-    global page_account
-    page_account = await bot.send_message(chat_id=CHAT_ID,
-                                          text=f'<b>Общее количество аккаунтов: {len(account)}\n'
-                                               f'Страница [{page + 1} / {len(account) // 10 + 1}]</b>\n',
-                                          parse_mode='HTML',
-                                          reply_markup=AccountMenu)
-    try:
-        await message.delete()
-    except AttributeError:
-        pass
+
+@dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Аккаунты 👥')
+async def Beast_Account(message: types.message):
+    await message.delete()
+    account = list(readJson('json/accounts.json'))
+    await SendMSG(f'Общее количество аккаунтов: {len(account)}\n'
+                  f'Страница [{page + 1} / {len(account) // 10 + 1}]', AccList())
 
 
 @dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Фарм 🕹')
@@ -459,7 +496,7 @@ async def Beast_Server(message: types.message):
             out = 'Сервер 💻\n\nВ данный момент на сервер:\n'
             for i in range(len(a2s.players(adrs))):
                 nick = str(a2s.players(adrs)[i]).split('name=')[-1].split(',')[0].replace("'", "")
-                timer = str(a2s.players(adrs)[i]).split('duration=')[-1].split(',')[0].replace("'", "").replace(')','').split('.')
+                timer = str(a2s.players(adrs)[i]).split('duration=')[-1].split(',')[0].replace("'", "").replace(')', '').split('.')
                 timer = int(timer[0])
                 out += f'\n👤{nick} | Провел на сервере: {time.strftime("%H:%M:%S", time.gmtime(timer))}'
             await SendMSG(f'{out}\n\n Выберите действие:', ServerKeyboard)
@@ -470,9 +507,7 @@ async def Beast_Server(message: types.message):
         await SendMSG('Сервер 💻\nВ данный момент выключен!\nВыберите действие:', ServerKeyboard)
 
 
-@dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Статистика 📔')
-async def Beast_Stats(message: types.message):
-    await message.delete()
+def StatsOut():
     out = '✨ Статистика ваших кейсов ✨\n'
     out += '\nЗа всё время вам выпало:'
     Case = readJson('json/AccountCase.json')
@@ -506,7 +541,13 @@ async def Beast_Stats(message: types.message):
             all_cases.append(check)
             out += f'\n{check}: {count} шт.'
     out += f'\n\n🔸Стоимость недельного дропа {math.ceil(all_cost)}₽'
-    await SendMSG(out, StatsKeyboard)
+    return out
+
+
+@dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Статистика 📔')
+async def Beast_Stats(message: types.message):
+    await message.delete()
+    await SendMSG(StatsOut(), StatsKeyboard)
 
 
 @dp.message_handler(filters.IDFilter(user_id=CHAT_ID), text='Другое 📎')
@@ -524,6 +565,7 @@ async def Beast_Other(message: types.message):
 @dp.callback_query_handler(lambda c: c.data.startswith('Select_Acc'))
 async def Beast_CallBack_Selected(callback: types.CallbackQuery):
     global acc, page
+    account = list(readJson('json/accounts.json'))
     acc = callback.data.replace('Select_Acc', '').strip()
     if acc == 'maFile':
         await callback.message.edit_text(text=f'<b>Отправьте maFile</b>', parse_mode='HTML')
@@ -534,12 +576,15 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
         await Account_Menu.Account_logpass.set()
     elif acc == 'NextPage':
         page += 1
-        await page_account.delete()
-        await Beast_Account(0)
+        await callback.message.edit_text(text=f'<b>Общее количество аккаунтов: {len(account)}\n'
+                                              f'Страница [{page + 1} / {len(account) // 10 + 1}]</b>',
+                                         parse_mode='HTML',
+                                         reply_markup=AccList())
     elif acc == 'PrevPage':
         page -= 1
-        await page_account.delete()
-        await Beast_Account(0)
+        await callback.message.edit_text(text=f'<b>Общее количество аккаунтов: {len(account)}\n'
+                                              f'Страница [{page + 1} / {len(account) // 10 + 1}]</b>', parse_mode='HTML',
+                                         reply_markup=AccList())
     elif acc == 'Update_Account':
         await callback.message.edit_text(text='<b>Создание аккаунтов, это займет некоторое время!</b>', parse_mode='HTML')
         accounts = {}
@@ -571,6 +616,9 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
         await SendMSG('Список аккаунтов обновлен')
     elif acc == 'Closed_Menu':
         await callback.message.delete()
+    elif acc == 'AddToList':
+        await callback.message.edit_text(text=f'<b>Выберите аккаунты: </b>', parse_mode='HTML',
+                                         reply_markup=Acc_ToList())
     else:
         await callback.message.edit_text(text=f'<b>{acc} | Выберите действие:</b>', parse_mode='HTML',
                                          reply_markup=AccountFunction)
@@ -637,12 +685,15 @@ async def Beast_CallBack_Account(callback: types.CallbackQuery):
         URLMark.add(URLButton)
         await callback.message.edit_text(f'<b>{acc} | Ссылка на аккаунт!</b>', parse_mode='HTML', reply_markup=URLMark)
     elif call == 'GoMenu':
-        await callback.message.delete()
-        await Beast_Account(0)
+        account = list(readJson('json/accounts.json'))
+        await callback.message.edit_text(text=f'<b>Общее количество аккаунтов: {len(account)}\n'
+                                              f'Страница [{page + 1} / {len(account) // 10 + 1}]</b>',
+                                         parse_mode='HTML',
+                                         reply_markup=AccList())
     elif call == 'Screen':
-        await callback.message.delete()
         info = readJson('json/launched_accounts.json')
         if list(info).count(acc):
+            await callback.message.delete()
             try:
                 with mss.mss() as sct:
                     autoit.win_activate(info[acc]["win_csgo_title"])
@@ -658,7 +709,41 @@ async def Beast_CallBack_Account(callback: types.CallbackQuery):
             except Exception as e:
                 await SendMSG(f'Ошибка: {e}')
         else:
-            await SendMSG('Аккаунт не запущен!')
+            await callback.message.edit_text('<b>Аккаунт не запущен!</b>', parse_mode='HTML')
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith('List_Acc'))
+async def Beast_CallBack_Account(callback: types.CallbackQuery):
+    global AccountList, page
+    call = callback.data.replace('List_Acc ', '').strip()
+    if call == 'NextPage':
+        page += 1
+        await callback.message.edit_text(text=f'<b>Выберите аккаунты: </b>', parse_mode='HTML',
+                                         reply_markup=Acc_ToList())
+    elif call == 'PrevPage':
+        page -= 1
+        await callback.message.edit_text(text=f'<b>Выберите аккаунты: </b>', parse_mode='HTML',
+                                         reply_markup=Acc_ToList())
+    elif call == 'Closed_Menu':
+        await callback.message.delete()
+    elif call == 'Start':
+        if len(AccountList) >= 1:
+            out = 'Запуск выбранных аккаунтов:\n\n'
+            for login in AccountList: out += f'👤 {login}\n'
+            await callback.message.edit_text(text=f'<b>{out}</b>', parse_mode='HTML')
+            for login in AccountList:
+                await LaunchSelect(login)
+            out += '\nЗапуск аккаунтов завершен'
+            await callback.message.edit_text(text=f'<b>{out}</b>', parse_mode='HTML')
+        else:
+            await callback.message.edit_text(text=f'<b>Необходимо выбрать несколько аккаунтов!</b>', parse_mode='HTML')
+    else:
+        if AccountList.count(call):
+            AccountList.remove(call)
+        else:
+            AccountList.append(call)
+        await callback.message.edit_text(text=f'<b>Выберите аккаунты: </b>', parse_mode='HTML',
+                                         reply_markup=Acc_ToList())
 
 
 # endregion
@@ -741,23 +826,22 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
             info = Farm_Start()
             await callback.message.delete()
             if info == 'NotAccount':
-                await SendMSG('Аккаунты в DropsSummoner отсутствуют!')
+                await callback.message.edit_text('<b>Аккаунты в DropsSummoner отсутствуют!</b>', parse_mode='HTML')
             elif info == 'NotFarmAccount':
-                await SendMSG('В данный момент, нет аккаунтов для фарма!')
+                await callback.message.edit_text('<b>Сейчас нет аккаунтов для фарма!</b>', parse_mode='HTML')
             else:
                 out = 'Аккаунты которые будут фармить:\n'
                 for login in info:
                     out += f'\n👤 {login}'
                 out += '\n\n⚠️Производится запуск аккаунтов\nПожалуйста не трогайте компьютер!'
-                await SendMSG(out)
+                await callback.message.edit_text(f'<b>{out}</b>', parse_mode='HTML')
                 for login in info:
                     await LaunchSelect(login)
         else:
-            await callback.message.delete()
-            await SendMSG('Ошибка 🚫\n'
-                          'У Вас не указан путь до IDLE сервера!\n'
-                          'Указать его можно перейдя по пути:\n'
-                          'Настройки > Пути > IDLE')
+            await callback.message.edit_text('<b>Ошибка 🚫\n'
+                                             'У Вас не указан путь до IDLE сервера!\n'
+                                             'Указать его можно перейдя по пути:\n'
+                                             'Настройки > Пути > IDLE</b>', parse_mode='HTML')
     elif Farm_Call == 'Stop':
         await callback.message.edit_text(f'<b>Производится остановка аккаунтов!</b>', parse_mode='HTML')
         await StoppingAll()
@@ -842,19 +926,18 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
     elif Settings_Call == 'AutoBot':
         await callback.message.edit_text(f'<b>Ошибка 🚫\nФункция в разработке.</b>', parse_mode='HTML')
     elif Settings_Call == 'AutoIDLE':
-        await callback.message.delete()
         info = readJson('Settings/settings.json')
         if info['auto_server_ip'] == 'None':
-            await SendMSG('Ошибка 🚫\n'
-                          'У Вас не указан путь до IDLE сервера')
+            await callback.message.edit_text('<b>Ошибка 🚫\n'
+                                             'У Вас не указан путь до IDLE сервера</b>', parse_mode='HTML')
         elif info['auto_start_server'] == 'OFF' and info['auto_server_ip'] != 'None':
             settings = {'auto_start_server': 'ON'}
             writeJson('Settings/settings.json', settings)
-            await SendMSG('Автозапуск сервера включен')
+            await callback.message.edit_text('<b>Автозапуск сервера включен</b>', parse_mode='HTML')
         elif info['auto_start_server'] == 'ON' and info['auto_server_ip'] != 'None':
             settings = {'auto_start_server': 'OFF'}
             writeJson('Settings/settings.json', settings)
-            await SendMSG('Автозапуск сервера выключен')
+            await callback.message.edit_text('<b>Автозапуск сервера выключен</b>', parse_mode='HTML')
     elif Settings_Call == 'Optimize':
         await callback.message.edit_text(f'<b>Запуск оптимизации!</b>', parse_mode='HTML')
         out = 'Результаты оптимизации:\n'
@@ -931,30 +1014,28 @@ async def Beast_CallBack_Selected(callback: types.CallbackQuery):
     global Server_Call
     Server_Call = callback.data.replace('Server_', '').strip()
     if Server_Call == 'ON':
-        await callback.message.delete()
         idle_path = readJson('Settings/settings.json')['auto_server_ip']
         if idle_path != 'None':
             enum = []
             for x in process_iter(): enum.append(x.name())
             if enum.count('srcds.exe') > 0:
-                await SendMSG('Сервер включен')
+                await callback.message.edit_text('<b>Сервер уже включен!</b>', parse_mode='HTML')
             else:
-                await SendMSG('Запуск сервера')
+                await callback.message.edit_text('<b>Запуск сервера</b>', parse_mode='HTML')
                 await Startup_IDLE()
         else:
-            await SendMSG('Ошибка 🚫\n'
-                          'У вас не указан путь до IDLE')
+            await callback.message.edit_text('<b>Ошибка 🚫\n'
+                                             'У Вас не указан путь до IDLE</b>', parse_mode='HTML')
     elif Server_Call == 'OFF':
-        await callback.message.delete()
         idle_path = readJson('Settings/settings.json')['auto_server_ip']
         if idle_path != 'None':
             enum = []
             for x in process_iter():
                 enum.append(x.name())
             if enum.count('srcds.exe') == 0:
-                await SendMSG('Сервер выключен')
+                await callback.message.edit_text('<b>Сервер уже выключен!</b>', parse_mode='HTML')
             else:
-                await SendMSG('Выключение сервера')
+                await callback.message.edit_text('<b>Выключение сервера</b>', parse_mode='HTML')
                 for proc in process_iter():
                     if proc.name() == 'srcds.exe':
                         proc.terminate()
@@ -984,7 +1065,7 @@ async def Beast_CallBack_Stats(callback: types.CallbackQuery):
         TimeCase = readJson('json/AccountCase.json')
         Result = {}
         if line:
-            await callback.message.edit_text(text=f'<b>Обновление статистики..</b>', parse_mode='HTML')
+            await callback.message.edit_text(text=f'<b>Обновление статистики. Это займет некоторое время!</b>', parse_mode='HTML')
             for log in line:
                 finder = re.search(pattern, log)
                 data = finder.group("data")
@@ -996,9 +1077,8 @@ async def Beast_CallBack_Stats(callback: types.CallbackQuery):
                     Price = Price.replace(',', '.').strip()
                     Result[data] = {"Case": str(Cases), "Price": str(Price)}
                     writeJson('json/AccountCase.json', Result)
-                    time.sleep(5)
-            await callback.message.delete()
-            await Beast_Stats(0)
+                    time.sleep(3)
+            await callback.message.edit_text(f'<b>{StatsOut()}</b>', parse_mode='HTML', reply_markup=StatsKeyboard)
     elif Stats_Call == 'Close':
         await callback.message.delete()
 

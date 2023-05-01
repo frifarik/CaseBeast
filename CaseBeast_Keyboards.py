@@ -1,23 +1,7 @@
-import signal, subprocess, time, autoit, py_win_keyboard_layout, json, os, requests
-from urllib.parse import urlencode
-from steampy.guard import generate_one_time_code
-from psutil import process_iter
-from itertools import product
-from bs4 import BeautifulSoup
-
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.dispatcher import filters
-from aiogram.types import ReplyKeyboardRemove, \
-    ReplyKeyboardMarkup, KeyboardButton, \
-    InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import types
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 KeyBoardInline = types.InlineKeyboardButton
-# ...Keyboard.row(KeyBoardInline(text='', callback_data=''),
-#                  KeyBoardInline(text='', callback_data=''))
-# ...Keyboard.add(KeyBoardInline(text='', callback_data=''))
 
 # Начальное меню:
 StartMenu = ReplyKeyboardMarkup(resize_keyboard=False, one_time_keyboard=False)
@@ -52,8 +36,7 @@ FarmKeyboard.add(KeyBoardInline(text='❌', callback_data=f'Farm_Close'))
 SettingsKeyboard = types.InlineKeyboardMarkup()
 SettingsKeyboard.row(KeyBoardInline(text='Путь Steam 🛤', callback_data='Settings_Steam'),
                      KeyBoardInline(text='Путь IDLE 🛤', callback_data='Settings_IDLE'))
-SettingsKeyboard.row(KeyBoardInline(text='Конфиг для игры ⚙️', callback_data='Settings_ConfigU'),
-                     KeyBoardInline(text='Конфиг для фарма ⚙️', callback_data='Settings_ConfigP'))
+SettingsKeyboard.add(KeyBoardInline(text='Конфиг для игры ⚙️', callback_data='Settings_ConfigP'))
 SettingsKeyboard.row(KeyBoardInline(text='Автозапуск бота 🛎', callback_data='Settings_AutoBot'),
                      KeyBoardInline(text='Автозапуск сервера 🛎', callback_data='Settings_AutoIDLE'))
 SettingsKeyboard.add(KeyBoardInline(text='Оптимизация 📈', callback_data='Settings_Optimize'))
