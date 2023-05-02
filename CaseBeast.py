@@ -11,7 +11,7 @@ try:
         else:
             from CaseBeast_Function import *
 
-            executor.start_polling(dp, skip_updates=True, on_startup=BotOn, on_shutdown=BotOff)
+            executor.start_polling(dp, skip_updates=True, on_startup=BotOn)
     else:
         import py_win_keyboard_layout
 
