@@ -296,7 +296,7 @@ async def Startup_IDLE():
     except Exception as e:
         print(f'Ошибка - {e}')
     subprocess.Popen(idle_path, cwd=idle_path[0:-10])
-    time.sleep(10)
+    time.sleep(20)
     pather = os.listdir(pather)
     ip_adrs = ''
     count = 0
@@ -510,7 +510,7 @@ async def Beast_Server(message: types.message):
 def StatsOut():
     out = '✨ Статистика ваших кейсов ✨\n'
     out += '\nЗа всё время вам выпало:'
-    Case = readJson('json/AccountCase.json')
+    Case = readJson('json/CaseStats.json')
     all_cost = 0
     temp_cases = []
     all_cases = []
@@ -734,6 +734,7 @@ async def Beast_CallBack_Account(callback: types.CallbackQuery):
             for login in AccountList:
                 await LaunchSelect(login)
             out += '\nЗапуск аккаунтов завершен'
+            AccountList = []
             await callback.message.edit_text(text=f'<b>{out}</b>', parse_mode='HTML')
         else:
             await callback.message.edit_text(text=f'<b>Необходимо выбрать несколько аккаунтов!</b>', parse_mode='HTML')
@@ -1062,7 +1063,7 @@ async def Beast_CallBack_Stats(callback: types.CallbackQuery):
                '\\csgo\\addons\\sourcemod\\logs\\DropsSummoner.log'
         pattern = r'L (?P<data>\d{2}/\d{2}/\d{4} - \d{2}:\d{2}):\d{2}[^\s<]+.*<STEAM_\d:\d:(?P<Steam2ID>\d*)[^\s<]+.*\[(?P<Case>\d+)-\d+-\d+-\d+\]'
         line = open(path, 'r', encoding='utf-8').readlines()
-        TimeCase = readJson('json/AccountCase.json')
+        TimeCase = readJson('json/CaseStats.json')
         Result = {}
         if line:
             await callback.message.edit_text(text=f'<b>Обновление статистики. Это займет некоторое время!</b>', parse_mode='HTML')
@@ -1076,7 +1077,7 @@ async def Beast_CallBack_Stats(callback: types.CallbackQuery):
                     Cases, Price = getPrice(int(Case))
                     Price = Price.replace(',', '.').strip()
                     Result[data] = {"Case": str(Cases), "Price": str(Price)}
-                    writeJson('json/AccountCase.json', Result)
+                    writeJson('json/CaseStats.json', Result)
                     time.sleep(3)
             await callback.message.edit_text(f'<b>{StatsOut()}</b>', parse_mode='HTML', reply_markup=StatsKeyboard)
     elif Stats_Call == 'Close':
@@ -1148,10 +1149,7 @@ async def Beast_Start(message: types.message):
 
 
 async def BotOn(_):
+    versions = "1.0"
     await SendMSG('Бот готов к работе! 🤖', StartMenu)
-
-
-async def BotOff(_):
-    await SendMSG('Бот завершает работу')
 
 # endregion
